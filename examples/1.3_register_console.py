@@ -47,7 +47,7 @@ def main(host: str, pin: str, ps4: bool = False, console_pin: str = "") -> None:
         "target": target.name,
         "regist_key": result.rp_regist_key,
         "nickname": result.server_nickname,
-        "morning": result.rp_key.hex(),
+        "morning": result.rp_key,
         "initial_login_pin": "",
         "duid": "",
         "auto_regist": False,

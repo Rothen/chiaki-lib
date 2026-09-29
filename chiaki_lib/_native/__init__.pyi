@@ -743,7 +743,7 @@ class ChiakiPySessionConnectInfo:
         host: str,
         nickname: str,
         regist_key: str,
-        morning: bytes,
+        morning: str,
         initial_login_pin: str,
         duid: str,
         auto_regist: bool,
@@ -1416,8 +1416,8 @@ class RegistResult:
 
 
     @property
-    def rp_key(self) -> bytes:
-        """The RP key, which ChiakiPySessionConnectInfo takes as `morning`."""
+    def rp_key(self) -> str:
+        """The RP key as 32 hex digits, which ChiakiPySessionConnectInfo takes as `morning`."""
         pass
     def __repr__(self) -> str:
         pass

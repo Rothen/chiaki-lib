@@ -38,8 +38,11 @@ void py_init_backend(py::module_ &m)
 
     pyClassRegistResult.def_property_readonly("rp_key", [](const RegistResult &r)
     {
-        return py::bytes(reinterpret_cast<const char *>(r.rp_key), sizeof(r.rp_key));
-    }, "The RP key, which ChiakiPySessionConnectInfo takes as `morning`.");
+        std::ostringstream rp_key;
+        for (uint8_t byte : r.rp_key)
+            rp_key << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte);
+        return rp_key.str();
+    }, "The RP key as 32 hex digits, which ChiakiPySessionConnectInfo takes as `morning`.");
     pyClassRegistResult.def("__repr__", [](const RegistResult &r)
     {
         std::ostringstream rp_key;

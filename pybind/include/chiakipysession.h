@@ -99,7 +99,7 @@ struct ChiakiPySessionConnectInfo
         std::string host,
         std::string nickname,
         std::string &regist_key,
-        py::bytes morning,
+        std::string morning,
         std::string initial_login_pin,
         std::string duid,
         bool auto_regist,

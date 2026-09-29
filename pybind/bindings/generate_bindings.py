@@ -295,8 +295,8 @@ def configure_backend(options: litgen.LitgenOptions) -> None:
         "RegistResult",
         stub_code='''
             @property
-            def rp_key(self) -> bytes:
-                """The RP key, which ChiakiPySessionConnectInfo takes as `morning`."""
+            def rp_key(self) -> str:
+                """The RP key as 32 hex digits, which ChiakiPySessionConnectInfo takes as `morning`."""
                 pass
             def __repr__(self) -> str:
                 pass
@@ -304,8 +304,11 @@ def configure_backend(options: litgen.LitgenOptions) -> None:
         pydef_code="""
             LG_CLASS.def_property_readonly("rp_key", [](const RegistResult &r)
             {
-                return py::bytes(reinterpret_cast<const char *>(r.rp_key), sizeof(r.rp_key));
-            }, "The RP key, which ChiakiPySessionConnectInfo takes as `morning`.");
+                std::ostringstream rp_key;
+                for (uint8_t byte : r.rp_key)
+                    rp_key << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte);
+                return rp_key.str();
+            }, "The RP key as 32 hex digits, which ChiakiPySessionConnectInfo takes as `morning`.");
             LG_CLASS.def("__repr__", [](const RegistResult &r)
             {
                 std::ostringstream rp_key;

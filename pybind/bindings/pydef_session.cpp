@@ -16,7 +16,7 @@ void py_init_session(py::module_ &m)
         py::class_<ChiakiPySessionConnectInfo>
             (m, "ChiakiPySessionConnectInfo", " Everything ChiakiPySession needs to open a connection to an already-registered console.\n Built from the registration a prior Backend.register_host() produced (`host`, `nickname`,\n `regist_key`, `morning` i.e. the RP key, `target`) plus `settings`; the pythonic\n `chiaki_py.Session` builds one of these from a `HostRegistration` when it is created.")
         .def(py::init<>())
-        .def(py::init<Settings *, ChiakiTarget, std::string, std::string, std::string &, py::bytes, std::string, std::string, bool, bool, bool, bool>(),
+        .def(py::init<Settings *, ChiakiTarget, std::string, std::string, std::string &, std::string, std::string, std::string, bool, bool, bool, bool>(),
             py::arg("settings"), py::arg("target"), py::arg("host"), py::arg("nickname"), py::arg("regist_key"), py::arg("morning"), py::arg("initial_login_pin"), py::arg("duid"), py::arg("auto_regist"), py::arg("fullscreen"), py::arg("zoom"), py::arg("stretch"))
         ;
 

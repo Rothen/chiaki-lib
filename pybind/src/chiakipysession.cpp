@@ -7,6 +7,7 @@
 #include "pylog.h"
 
 #include <algorithm>
+#include <cctype>
 #include <ios>
 #include <cstring>
 #include <iostream>
@@ -92,7 +93,7 @@ ChiakiPySessionConnectInfo::ChiakiPySessionConnectInfo(
     std::string host,
     std::string nickname,
     std::string &regist_key,
-    py::bytes morning,
+    std::string morning,
     std::string initial_login_pin,
     std::string duid,
     bool auto_regist,
@@ -122,10 +123,11 @@ ChiakiPySessionConnectInfo::ChiakiPySessionConnectInfo(
 
     std::memset(this->regist_key, '\0', CHIAKI_SESSION_AUTH_SIZE); // Zero out first
     std::memcpy(this->regist_key, regist_key.data(), std::min<size_t>(regist_key.size(), CHIAKI_SESSION_AUTH_SIZE - 1));
-    std::memset(this->morning, 0, 0x10);
-    std::string morning_str = morning;
-    std::vector<uint8_t> morning_converted(morning_str.begin(), morning_str.end());
-    std::memcpy(this->morning, morning_converted.data(), morning_converted.size());
+    // morning is the RP key as hex, as RegistResult.rp_key gives it
+    if (morning.size() != 2 * sizeof(this->morning) || !std::all_of(morning.begin(), morning.end(), [](unsigned char c) { return std::isxdigit(c); }))
+        throw py::value_error("morning must be the 16-byte RP key as 32 hex digits");
+    for (size_t i = 0; i < sizeof(this->morning); i++)
+        this->morning[i] = static_cast<uint8_t>(std::stoul(morning.substr(2 * i, 2), nullptr, 16));
 
     this->initial_login_pin = std::move(initial_login_pin);
     audio_buffer_size = settings->GetAudioBufferSize();

@@ -78,7 +78,7 @@ def create_session(registration: dict[str, Any], settings: Settings) -> ChiakiPy
         host=registration["host"],
         nickname=registration["nickname"],
         regist_key=registration["regist_key"],
-        morning=bytes.fromhex(registration["morning"]),
+        morning=registration["morning"],
         initial_login_pin=registration["initial_login_pin"],
         duid=registration["duid"],
         auto_regist=registration["auto_regist"],

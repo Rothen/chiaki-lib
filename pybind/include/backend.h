@@ -98,7 +98,7 @@ struct RegistResult
     std::string server_nickname;
     std::string rp_regist_key;
     uint32_t rp_key_type;
-    uint8_t rp_key[0x10]; // Bound as bytes by generate_bindings.py.
+    uint8_t rp_key[0x10]; // Bound as a hex string by generate_bindings.py.
     uint32_t console_pin;
 
     RegistResult() = default;
