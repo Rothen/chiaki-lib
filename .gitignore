@@ -11,3 +11,5 @@ chiaki_lib/*.dll
 dist/
 wheelhouse*/
 *.egg-info/
+scripts/
+cache/
