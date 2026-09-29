@@ -1,0 +1,59 @@
+[project]
+name = "chiaki-lib"
+# Derived from the git tag (vX.Y.Z) by setuptools-scm - see [tool.setuptools_scm].
+dynamic = ["version"]
+description = "Low-level pybind11 bindings around chiaki-ng, the PS4/PS5 Remote Play client library"
+readme = "README.md"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
+authors = [{ name = "Benjamin Heuberger", email = "beni.heu@gmail.com" }]
+
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Software Development :: Libraries",
+]
+keywords = ["playstation", "remote-play", "chiaki", "chiaki-ng", "ps4", "ps5", "streaming", "pybind11"]
+dependencies = [
+    "numpy>=2.4",
+]
+
+[project.optional-dependencies]
+# Regenerates the bindings and stubs from the headers: python pybind/bindings/generate_bindings.py
+dev = ["litgen==0.22.0"]
+
+[project.urls]
+Homepage = "https://github.com/Rothen/chiaki-lib"
+Repository = "https://github.com/Rothen/chiaki-lib"
+Issues = "https://github.com/Rothen/chiaki-lib/issues"
+
+[build-system]
+requires = ["setuptools>=69", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+local_scheme = "no-local-version"
+fallback_version = "0.0.0"
+
+[tool.setuptools]
+packages = ["chiaki_lib", "chiaki_lib.core"]
+
+# The extension module and the shared libraries next to it are built by CMake first (see README.md),
+# setuptools only packages them.
+[tool.setuptools.package-data]
+"chiaki_lib" = ["py.typed", "*.pyd", "*.so", "*.dll", "_native/*.pyi", "_native/core/*.pyi"]
+
+[tool.pyright]
+reportMissingTypeStubs = false

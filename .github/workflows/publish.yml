@@ -1,0 +1,66 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    uses: ./.github/workflows/build-windows.yml
+
+  build-ubuntu:
+    uses: ./.github/workflows/build-ubuntu.yml
+
+  build-macos:
+    uses: ./.github/workflows/build-macos.yml
+
+  build-raspberrypi:
+    uses: ./.github/workflows/build-raspberrypi.yml
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    if: github.event_name == 'workflow_dispatch'
+    needs: [build-windows, build-ubuntu, build-macos, build-raspberrypi]
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/chiaki-lib/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist/
+
+      - name: List distributions
+        run: ls -l dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+
+  publish:
+    name: Publish to PyPI
+    if: github.event_name == 'release'
+    needs: [build-windows, build-ubuntu, build-macos, build-raspberrypi]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/chiaki-lib/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist/
+
+      - name: List distributions
+        run: ls -l dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1

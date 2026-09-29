@@ -1,0 +1,13 @@
+build*/
+deps/
+libs/
+vcpkg_installed/
+*.log
+__pycache__/
+chiaki_lib/_native.*
+chiaki_lib/*.dll
+.vscode/
+
+dist/
+wheelhouse*/
+*.egg-info/

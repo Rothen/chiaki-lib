@@ -1,0 +1,23 @@
+{
+    "name": "chiaki-lib",
+    "version": "0.0.1",
+    "dependencies": [
+        "pkgconf",
+        "sdl2",
+        "protobuf",
+        "openssl",
+        "hidapi",
+        "json-c",
+        "miniupnpc",
+        "opus",
+        "fftw3",
+        "lcms",
+        "speexdsp",
+        "vulkan",
+        "shaderc",
+        "fmt",
+        "zlib",
+        "libssh2",
+        "libevent"
+    ]
+}
