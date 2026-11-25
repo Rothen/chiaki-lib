@@ -26,7 +26,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                python-version: ["3.11", "3.12", "3.13", "3.14"]
+                python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
         env:
             # Bookworm's FFmpeg (5.1, also what Raspberry Pi OS ships) is too old for chiaki-ng, which needs
             # AVFrame.duration (FFmpeg 6.0+), so a newer one is built here and auditwheel bundles it into the

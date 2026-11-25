@@ -29,7 +29,7 @@ FetchContent_Declare(
     pybind11
     GIT_REPOSITORY https://github.com/pybind/pybind11.git
     SOURCE_DIR "${DEPS_FOLDER}/pybind11"
-    GIT_TAG v3.0.1
+    GIT_TAG v3.1.0 # the first release tested with Python 3.15
 )
 FetchContent_MakeAvailable(pybind11)
 include_directories(${DEPS_FOLDER}/pybind11)
