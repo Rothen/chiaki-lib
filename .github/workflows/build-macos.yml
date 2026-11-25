@@ -74,8 +74,15 @@ jobs:
 
             - name: Point compiler/linker at Homebrew
               run: |
-                  echo "CPATH=$(brew --prefix)/include" >> "$GITHUB_ENV"
-                  echo "LIBRARY_PATH=$(brew --prefix)/lib" >> "$GITHUB_ENV"
+                  # openssl@3 is keg-only, so the OpenSSL linked into $(brew --prefix) can be another
+                  # major version, pulled in by another formula. OpenSSL 4 made ASN1_STRING opaque,
+                  # which the curl bundled with chiaki-ng doesn't compile against: put openssl@3 first.
+                  openssl3="$(brew --prefix openssl@3)"
+                  echo "OPENSSL_ROOT_DIR=$openssl3" >> "$GITHUB_ENV"
+                  echo "Linked OpenSSL: $(grep -h 'define OPENSSL_VERSION_TEXT' "$(brew --prefix)/include/openssl/opensslv.h" 2>/dev/null || echo none)"
+                  echo "openssl@3:      $(grep -h 'define OPENSSL_VERSION_TEXT' "$openssl3/include/openssl/opensslv.h")"
+                  echo "CPATH=$openssl3/include:$(brew --prefix)/include" >> "$GITHUB_ENV"
+                  echo "LIBRARY_PATH=$openssl3/lib:$(brew --prefix)/lib" >> "$GITHUB_ENV"
                   echo "PKG_CONFIG_PATH=$SDL2_PREFIX/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix protobuf)/lib/pkgconfig" >> "$GITHUB_ENV"
                   echo "$(brew --prefix protobuf)/bin" >> "$GITHUB_PATH"
 
@@ -95,9 +102,21 @@ jobs:
                     -DCMAKE_OSX_DEPLOYMENT_TARGET="$MACOSX_DEPLOYMENT_TARGET" \
                     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
                     -DPython3_EXECUTABLE="$(which python)" -DPython_EXECUTABLE="$(which python)" -DPYTHON_EXECUTABLE="$(which python)" \
-                    -DCMAKE_PREFIX_PATH="$SDL2_PREFIX;$(brew --prefix);$(brew --prefix openssl@3);$(brew --prefix protobuf)" \
+                    -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_DIR" \
+                    -DCMAKE_PREFIX_PATH="$SDL2_PREFIX;$OPENSSL_ROOT_DIR;$(brew --prefix);$(brew --prefix protobuf)" \
                     -DCMAKE_SHARED_LINKER_FLAGS="-Wl,-rpath,$(brew --prefix)/lib -Wl,-rpath,$SDL2_PREFIX/lib" \
                     -DCMAKE_MODULE_LINKER_FLAGS="-Wl,-rpath,$(brew --prefix)/lib -Wl,-rpath,$SDL2_PREFIX/lib"
+
+            - name: Check OpenSSL
+              run: |
+                  # Fail here, not deep in the build, if CMake found an OpenSSL other than openssl@3.
+                  found="$(grep -E '^OPENSSL_(INCLUDE_DIR|SSL_LIBRARY|CRYPTO_LIBRARY):' build-release/CMakeCache.txt)"
+                  echo "$found"
+                  # The paths may go through the opt/ symlink or the Cellar it points into.
+                  if [ -z "$found" ] || echo "$found" | grep -v -e "$OPENSSL_ROOT_DIR" -e "$(brew --cellar openssl@3)"; then
+                      echo "::error::CMake did not pick up the OpenSSL in $OPENSSL_ROOT_DIR"
+                      exit 1
+                  fi
 
             - name: Build chiaki-lib
               run: cmake --build build-release --config Release --target chiaki-lib-py -- -j"$(sysctl -n hw.ncpu)"
