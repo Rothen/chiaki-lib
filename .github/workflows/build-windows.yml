@@ -53,13 +53,24 @@ jobs:
                   choco install cmake --version=4.4.3 --installargs "ADD_CMAKE_TO_PATH=System" --no-progress -y --allow-downgrade --force
                   echo "$env:ProgramFiles\CMake\bin" >> $env:GITHUB_PATH
 
-            - name: Set up Clang
-              run: |
-                  choco install llvm --version=20.1.8 --no-progress -y --allow-downgrade
-                  echo "$env:ProgramFiles\LLVM\bin" >> $env:GITHUB_PATH
-
             - name: Set up MSVC dev environment
               uses: ilammy/msvc-dev-cmd@v1
+
+            # Use the clang-cl that ships with Visual Studio, not a separately installed LLVM: MSVC's
+            # STL only accepts the Clang version it was released with (STL1000 "expected Clang 22 or
+            # newer"), so a pinned LLVM breaks whenever the runner's Visual Studio is updated.
+            - name: Set up Clang (Visual Studio's clang-cl)
+              run: |
+                  $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+                  $vs = & $vswhere -latest -products * -property installationPath
+                  $clang_dir = "$vs\VC\Tools\Llvm\x64\bin"
+                  if (-not (Test-Path "$clang_dir\clang-cl.exe") -or -not (Test-Path "$clang_dir\lld-link.exe")) {
+                      Write-Output "::error::Visual Studio's clang-cl/lld-link not found in $clang_dir (component Microsoft.VisualStudio.Component.VC.Llvm.Clang)"
+                      exit 1
+                  }
+                  & "$clang_dir\clang-cl.exe" --version
+                  "CLANG_CL=$clang_dir\clang-cl.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+                  "$clang_dir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
             - name: Reset VCPKG_ROOT
               run: echo "VCPKG_ROOT=$env:GITHUB_WORKSPACE\vcpkg" >> $env:GITHUB_ENV
@@ -82,7 +93,7 @@ jobs:
                   $py = (Get-Command python).Source
                   cmake --fresh -S . -B build-release -G Ninja -DCMAKE_POLICY_VERSION_MINIMUM="3.5" `
                     -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
-                    -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl `
+                    -DCMAKE_C_COMPILER="$env:CLANG_CL" -DCMAKE_CXX_COMPILER="$env:CLANG_CL" `
                     -DCMAKE_BUILD_TYPE=Release `
                     -DPython3_EXECUTABLE="$py" -DPython_EXECUTABLE="$py" -DPYTHON_EXECUTABLE="$py"
 
