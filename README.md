@@ -19,9 +19,10 @@ repository root, in order: each step saves what the next one needs under `./cach
 
 | Script | What it does |
 | --- | --- |
-| `1.1_login.py` | Signs in to your PSN account in the terminal (open the printed URL, paste back the one you land on) and saves it to `cache/psn_account.json` |
+| `1.1_login.py` | Signs in to your PSN account in the terminal (open the printed URL, paste back the one you land on) and saves it, with its OAuth tokens, to `cache/psn_account.json` |
 | `1.2_discover_hosts.py [--timeout SECONDS]` | Lists the PS4/PS5 consoles on the local network; needs no login |
 | `1.3_register_console.py <host> <pin> [--ps4] [--console-pin PIN]` | Pairs with a console using the 8-digit code from its Link Device screen and saves `cache/host_registration.json` |
+| `1.3_auto_register_console.py [name] [--ps4]` | Instead of 1.3: registers with a console through PSN without a PIN (chiaki-ng's automatic registration) and saves the same `cache/host_registration.json`. The console must be signed in to your account with Remote Play enabled; for a PS4, only the account's primary PS4 works |
 | `1.4.1_stream_cpu.py` | Streams the registered console into an OpenCV window, frames decoded to system memory (`CpuFrameHandler`) |
 | `1.4.2_stream_cuda.py` | Streams into a GLFW window, frames converted and drawn on an NVIDIA GPU through CUDA-OpenGL interop (`CudaFrameHandler`) |
 | `1.4.3_stream_vulkan.py` | Streams into a GLFW window, frames decoded and drawn on the GPU with Vulkan and never copied (`VulkanFrameHandler`, `VulkanRenderer`) |
@@ -36,13 +37,13 @@ python examples/1.4.1_stream_cpu.py
 The streaming examples wake the console up if it is in standby, play its audio, and forward a
 DualSense controller's input if [dualsense-py](https://pypi.org/project/dualsense-py/) is
 installed and one is plugged in. In the window, F shows the frame rate and Q or Esc quits.
-`helpers.py`, `fps_overlay.py`, `glfw_video.py` and `cuda_gl.py` hold the code they share.
+`psn_auth.py`, `helpers.py`, `fps_overlay.py`, `glfw_video.py` and `cuda_gl.py` hold the code they share.
 
 Besides `chiaki_lib`, the examples need:
 
 | Script | Packages |
 | --- | --- |
-| `1.1_login.py` | `requests` |
+| `1.1_login.py`, `1.3_auto_register_console.py` | `requests` |
 | `1.4.1_stream_cpu.py` | `opencv-python` |
 | `1.4.2_stream_cuda.py` | `cupy-cuda12x cuda-python PyOpenGL glfw opencv-python`, and an NVIDIA GPU that also drives the display |
 | `1.4.3_stream_vulkan.py` | `glfw opencv-python`, and a GPU and driver with Vulkan video decoding |
