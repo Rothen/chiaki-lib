@@ -10,6 +10,7 @@
 #include "pylog.h"
 
 #include <chiaki/discovery.h>
+#include <chiaki/remote/holepunch.h>
 
 #include <mutex>
 #include <variant>
@@ -20,6 +21,9 @@
 #include <algorithm>
 #include <cstdlib>
 #include <future>
+#include <cstring>
+#include <iomanip>
+#include <sstream>
 
 #define PSN_DEVICES_TRIES 2
 #define MAX_PSN_RECONNECT_TRIES 6
@@ -105,9 +109,20 @@ struct RegistResult
     explicit RegistResult(const ChiakiRegistEvent &event);
 };
 
+// A PS5 linked to a PSN account, as Backend.list_psn_devices() returns it.
+struct PsnDevice
+{
+    // The console's device ID as 64 hex digits: the `duid` a PSN session with it takes.
+    std::string duid;
+    // The console's name, as discovery and registration report it too.
+    std::string name;
+    // Whether Remote Play is enabled on the console: a PSN session can only reach it if so.
+    bool remoteplay_enabled;
+};
+
 // Stages of connecting to a console over PSN (remote play over the internet, via holepunching)
 // rather than the local network. Exported for forward compatibility; no bound method currently
-// returns one, since the PSN remote-connect path isn't wired up yet.
+// returns one.
 enum class PsnConnectState
 {
     NotStarted,
@@ -126,6 +141,8 @@ enum class PsnConnectState
 // Registers with a console: the one-time PIN pairing that gets back the registration key
 // ChiakiPySession later needs to connect. `chiaki_py.register_host()` wraps register_host() with
 // a pythonic result type (HostRegistration) and is the easier way to call this from Python.
+// Automatic (PIN-less) registration goes through a PSN session instead: see list_psn_devices()
+// and ChiakiPySessionConnectInfo's `duid` and `auto_regist`.
 class Backend
 {
 public:
@@ -246,6 +263,60 @@ public:
         regist.start(info);
         future.get();
         return result;
+    }
+
+    // The PS5s linked to the PSN account `psn_token` (an OAuth access token with the
+    // psn:clientapp scope) belongs to, for PSN sessions and automatic (PIN-less) registration.
+    // Raises RuntimeError if PSN can't be asked or refuses, e.g. for an expired token.
+    // PSN lists no PS4s: use psn_main_ps4_duid() for the account's primary PS4.
+    static std::vector<PsnDevice> ListPsnDevices(const std::string &psn_token)
+    {
+        ChiakiLog log;
+        chiaki_log_init_python(&log);
+        ChiakiHolepunchDeviceInfo *devices = nullptr;
+        size_t device_count = 0;
+        ChiakiErrorCode err;
+        {
+            GilReleaseIfHeld release;
+            err = chiaki_holepunch_list_devices(psn_token.c_str(), CHIAKI_HOLEPUNCH_CONSOLE_TYPE_PS5, &devices, &device_count, &log);
+        }
+        if (err != CHIAKI_ERR_SUCCESS)
+            throw std::runtime_error(std::string("Failed to list the PSN account's consoles: ") + chiaki_error_string(err));
+
+        std::vector<PsnDevice> result;
+        for (size_t i = 0; i < device_count; i++)
+        {
+            const ChiakiHolepunchDeviceInfo &device = devices[i];
+            std::ostringstream duid;
+            for (uint8_t byte : device.device_uid)
+                duid << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte);
+            result.push_back({duid.str(), std::string(device.device_name, strnlen(device.device_name, sizeof(device.device_name))), device.remoteplay_enabled});
+        }
+        if (devices)
+            chiaki_holepunch_free_device_list(&devices);
+        return result;
+    }
+
+    // The `duid` that stands for the account's primary PS4 in a PSN session: only the PS4 set as
+    // primary console of the account can be reached over PSN.
+    static std::string PsnMainPs4Duid()
+    {
+        // 32 bytes of 'A' (0x41), as chiaki-ng uses it
+        std::string duid;
+        for (size_t i = 0; i < sizeof(ChiakiHolepunchDeviceInfo::device_uid); i++)
+            duid += "41";
+        return duid;
+    }
+
+    // A new device ID for this client, which PSN's login page takes as its `duid` parameter.
+    static std::string GenerateClientDeviceUid()
+    {
+        char duid[CHIAKI_DUID_STR_SIZE];
+        size_t duid_size = sizeof(duid);
+        ChiakiErrorCode err = chiaki_holepunch_generate_client_device_uid(duid, &duid_size);
+        if (err != CHIAKI_ERR_SUCCESS)
+            throw std::runtime_error(std::string("Failed to generate a client device ID: ") + chiaki_error_string(err));
+        return std::string(duid, strnlen(duid, sizeof(duid)));
     }
 
 private:

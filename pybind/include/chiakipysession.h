@@ -188,6 +188,7 @@ class ChiakiPySession
 
 		void CantDisplayMessage(bool cant_display);
 		ChiakiErrorCode InitiatePsnConnection(std::string psn_token);
+		ChiakiErrorCode PunchPsnConnection(const std::string &duid, bool ps5);
 
         std::function<void(ChiakiEvent *)> OnEvent;
         std::function<void()> OnUpdateGamepads;
@@ -239,8 +240,8 @@ class ChiakiPySession
 		bool GetMuted()	{ return muted; } // Whether the microphone is muted.
 		void SetAudioVolume(int volume) { audio_volume = volume; } // Stored only: playback does not apply it yet.
 		bool GetCantDisplay()	{ return cant_display; } // Whether the console refused to stream what is on screen (e.g. HDCP-protected video).
-		ChiakiErrorCode ConnectPsnConnection(std::string duid, bool ps5);
-		void CancelPsnConnection(bool stop_thread);
+		void ConnectPsnConnection(std::string duid, bool ps5); // For a session created with a `duid`: set up its PSN connection to that console (the hole punching for its control connection). Call it before start(). Blocks until done, which can take up to a minute; raises RuntimeError if it fails.
+		void CancelPsnConnection(bool stop_thread); // Abort a running connect_psn_connection().
 
 		ChiakiLog *GetChiakiLog()				{ return log.GetChiakiLog(); }
 		std::list<Controller *> GetControllers()
