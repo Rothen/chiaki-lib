@@ -75,23 +75,23 @@ public:
     void next(const T &value) const
     {
         py::gil_scoped_acquire gil;
-        std::lock_guard<std::mutex> lock(subscribers_mutex);
-        for (auto &sub : subscribers)
+        py::object arg;
+        try
         {
-            if (sub.active && sub.on_next)
-                sub.on_next(py::cast(value));
+            arg = py::cast(value);
         }
+        catch (py::error_already_set &e)
+        {
+            e.discard_as_unraisable("converting an event for its Python subscribers");
+            return;
+        }
+        call_on_next(arg);
     }
 
     void next() const
     {
         py::gil_scoped_acquire gil;
-        std::lock_guard<std::mutex> lock(subscribers_mutex);
-        for (auto &sub : subscribers)
-        {
-            if (sub.active && sub.on_next)
-                sub.on_next(py::none());
-        }
+        call_on_next(py::none());
     }
 
     void error(const int code, const std::string &message) const
@@ -147,6 +147,32 @@ public:
     }
 
 private:
+    // Called with the GIL held, usually from one of chiaki's threads. The callbacks are called
+    // without holding subscribers_mutex, so that a callback, or a thread it wakes up, can
+    // unsubscribe without a deadlock. An exception a callback raises is printed like one in a
+    // thread (sys.unraisablehook): if it got back into chiaki's C code, it would end the process.
+    void call_on_next(const py::object &arg) const
+    {
+        std::vector<std::function<void(const py::object &)>> callbacks;
+        {
+            std::lock_guard<std::mutex> lock(subscribers_mutex);
+            for (auto &sub : subscribers)
+                if (sub.active && sub.on_next)
+                    callbacks.push_back(sub.on_next);
+        }
+        for (auto &callback : callbacks)
+        {
+            try
+            {
+                callback(arg);
+            }
+            catch (py::error_already_set &e)
+            {
+                e.discard_as_unraisable("an event subscriber's on_next callback");
+            }
+        }
+    }
+
     mutable std::mutex subscribers_mutex;
     std::vector<Subscription> subscribers;
     bool has_started = false;
