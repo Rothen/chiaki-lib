@@ -123,11 +123,17 @@ ChiakiPySessionConnectInfo::ChiakiPySessionConnectInfo(
 
     std::memset(this->regist_key, '\0', CHIAKI_SESSION_AUTH_SIZE); // Zero out first
     std::memcpy(this->regist_key, regist_key.data(), std::min<size_t>(regist_key.size(), CHIAKI_SESSION_AUTH_SIZE - 1));
-    // morning is the RP key as hex, as RegistResult.rp_key gives it
-    if (morning.size() != 2 * sizeof(this->morning) || !std::all_of(morning.begin(), morning.end(), [](unsigned char c) { return std::isxdigit(c); }))
-        throw py::value_error("morning must be the 16-byte RP key as 32 hex digits");
-    for (size_t i = 0; i < sizeof(this->morning); i++)
-        this->morning[i] = static_cast<uint8_t>(std::stoul(morning.substr(2 * i, 2), nullptr, 16));
+    // morning is the RP key as hex, as RegistResult.rp_key gives it. A PSN session (duid set)
+    // needs none: it registers with the console over PSN first and uses the keys it gets back.
+    std::memset(this->morning, 0, sizeof(this->morning));
+    bool psn_without_keys = !duid.empty() && morning.empty();
+    if (!psn_without_keys)
+    {
+        if (morning.size() != 2 * sizeof(this->morning) || !std::all_of(morning.begin(), morning.end(), [](unsigned char c) { return std::isxdigit(c); }))
+            throw py::value_error("morning must be the 16-byte RP key as 32 hex digits");
+        for (size_t i = 0; i < sizeof(this->morning); i++)
+            this->morning[i] = static_cast<uint8_t>(std::stoul(morning.substr(2 * i, 2), nullptr, 16));
+    }
 
     this->initial_login_pin = std::move(initial_login_pin);
     audio_buffer_size = settings->GetAudioBufferSize();
@@ -333,7 +339,7 @@ ChiakiPySession::ChiakiPySession(const ChiakiPySessionConnectInfo &connect_info)
         std::vector<uint8_t> psn_account_id = fromBase64(connect_info.psn_account_id);
         if (psn_account_id.size() != CHIAKI_PSN_ACCOUNT_ID_SIZE)
         {
-            throw ChiakiException(std::string("Invalid Account-ID The PSN Account-ID must be exactly %1 bytes encoded as base64."));
+            throw ChiakiException("Invalid Account-ID: the PSN Account-ID (Settings.set_psn_account_id()) must be exactly " + std::to_string(CHIAKI_PSN_ACCOUNT_ID_SIZE) + " bytes encoded as base64.");
         }
         memcpy(chiaki_connect_info.psn_account_id, psn_account_id.data(), CHIAKI_PSN_ACCOUNT_ID_SIZE);
     }
@@ -563,7 +569,23 @@ ChiakiErrorCode ChiakiPySession::InitiatePsnConnection(std::string psn_token)
     return CHIAKI_ERR_SUCCESS;
 }
 
-ChiakiErrorCode ChiakiPySession::ConnectPsnConnection(std::string duid, bool ps5)
+void ChiakiPySession::ConnectPsnConnection(std::string duid, bool ps5)
+{
+    if (!holepunch_session)
+        throw ChiakiException("This session was created without a duid, so it has no PSN connection to set up");
+    if (duid.size() != 2 * sizeof(ChiakiHolepunchDeviceInfo::device_uid) || !std::all_of(duid.begin(), duid.end(), [](unsigned char c) { return std::isxdigit(c); }))
+        throw py::value_error("duid must be the console's 32-byte device ID as 64 hex digits");
+    ChiakiErrorCode err;
+    {
+        // The hole punching runs threads of its own, which take the GIL to log: wait without holding it.
+        GilReleaseIfHeld release;
+        err = PunchPsnConnection(duid, ps5);
+    }
+    if (err != CHIAKI_ERR_SUCCESS)
+        throw ChiakiException("PSN connection failed: " + fromLocal8Bit(chiaki_error_string(err)));
+}
+
+ChiakiErrorCode ChiakiPySession::PunchPsnConnection(const std::string &duid, bool ps5)
 {
     ChiakiLog *log = GetChiakiLog();
     if (ps5)
@@ -620,6 +642,8 @@ ChiakiErrorCode ChiakiPySession::ConnectPsnConnection(std::string duid, bool ps5
 
 void ChiakiPySession::CancelPsnConnection(bool stop_thread)
 {
+    if (!holepunch_session)
+        return;
     chiaki_holepunch_main_thread_cancel(holepunch_session, stop_thread);
 }
 

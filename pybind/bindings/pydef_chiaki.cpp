@@ -11,9 +11,28 @@
 #include <chiaki/regist.h>
 #include <chiaki/session.h>
 
+#include <cstring>
 #include <iomanip>
 #include <sstream>
 #include <string>
+
+// A fixed-size char field of a chiaki struct, which need not end in '\0'.
+template <size_t N>
+static std::string c_string(const char (&field)[N])
+{
+    return std::string(field, strnlen(field, N));
+}
+
+// A byte array as hex digits, the bytes separated by `separator`.
+template <size_t N>
+static std::string hex_string(const uint8_t (&bytes)[N], const char *separator = "")
+{
+    std::ostringstream hex;
+    hex << std::hex << std::setfill('0');
+    for (size_t i = 0; i < N; i++)
+        hex << (i > 0 ? separator : "") << std::setw(2) << static_cast<int>(bytes[i]);
+    return hex.str();
+}
 
 void py_init_chiaki(py::module_ &m)
 {
@@ -119,33 +138,28 @@ void py_init_chiaki(py::module_ &m)
         "The result of a successful registration, as delivered through RegistEvent.registered_host by "
         "Backend.register_host_async(). Backend.register_host() (the blocking variant) returns the "
         "equivalent information as a RegistResult instead.")
+        // The C arrays are converted by hand: pybind11 has no caster for them, so reading them failed.
         .def_readonly("target", &ChiakiRegisteredHost::target)
-        .def_readonly("ap_ssid", &ChiakiRegisteredHost::ap_ssid)
-        .def_readonly("ap_bssid", &ChiakiRegisteredHost::ap_bssid)
-        .def_readonly("ap_key", &ChiakiRegisteredHost::ap_key)
-        .def_readonly("ap_name", &ChiakiRegisteredHost::ap_name)
-        .def_readonly("server_mac", &ChiakiRegisteredHost::server_mac)
-        .def_readonly("server_nickname", &ChiakiRegisteredHost::server_nickname)
-        .def_readonly("rp_regist_key", &ChiakiRegisteredHost::rp_regist_key)
+        .def_property_readonly("ap_ssid", [](const ChiakiRegisteredHost &h) { return c_string(h.ap_ssid); })
+        .def_property_readonly("ap_bssid", [](const ChiakiRegisteredHost &h) { return c_string(h.ap_bssid); })
+        .def_property_readonly("ap_key", [](const ChiakiRegisteredHost &h) { return c_string(h.ap_key); })
+        .def_property_readonly("ap_name", [](const ChiakiRegisteredHost &h) { return c_string(h.ap_name); })
+        .def_property_readonly("server_mac", [](const ChiakiRegisteredHost &h) { return hex_string(h.server_mac, ":"); },
+            "The console's MAC address, as 'aa:bb:cc:dd:ee:ff'.")
+        .def_property_readonly("server_nickname", [](const ChiakiRegisteredHost &h) { return c_string(h.server_nickname); })
+        .def_property_readonly("rp_regist_key", [](const ChiakiRegisteredHost &h) { return c_string(h.rp_regist_key); },
+            "The registration key, which ChiakiPySessionConnectInfo takes as `regist_key`.")
         .def_readonly("rp_key_type", &ChiakiRegisteredHost::rp_key_type)
-        .def_readonly("rp_key", &ChiakiRegisteredHost::rp_key)
+        .def_property_readonly("rp_key", [](const ChiakiRegisteredHost &h) { return hex_string(h.rp_key); },
+            "The RP key as 32 hex digits, which ChiakiPySessionConnectInfo takes as `morning`.")
         .def_readonly("console_pin", &ChiakiRegisteredHost::console_pin)
         .def("__repr__",
              [](const ChiakiRegisteredHost &host)
              {
-                 std::ostringstream mac_ss;
-                 mac_ss << std::hex << std::setfill('0');
-                 for (int i = 0; i < 6; ++i)
-                 {
-                     mac_ss << std::setw(2) << static_cast<int>(host.server_mac[i]);
-                     if (i < 5)
-                         mac_ss << ":";
-                 }
-
-                 return "<RegisteredHost server_nickname='" + std::string(host.server_nickname) +
-                        "' ap_name='" + std::string(host.ap_name) +
-                        "' ap_ssid='" + std::string(host.ap_ssid) +
-                        "' server_mac='" + mac_ss.str() +
+                 return "<RegisteredHost server_nickname='" + c_string(host.server_nickname) +
+                        "' ap_name='" + c_string(host.ap_name) +
+                        "' ap_ssid='" + c_string(host.ap_ssid) +
+                        "' server_mac='" + hex_string(host.server_mac, ":") +
                         "' console_pin=" + std::to_string(host.console_pin) +
                         ">";
              });

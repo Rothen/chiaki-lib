@@ -69,8 +69,26 @@ void py_init_backend(py::module_ &m)
 
 
 
+    auto pyClassPsnDevice =
+        py::class_<PsnDevice>
+            (m, "PsnDevice", "A PS5 linked to a PSN account, as Backend.list_psn_devices() returns it.")
+        .def(py::init<>()) // implicit default constructor
+        .def_readonly("duid", &PsnDevice::duid, "The console's device ID as 64 hex digits: the `duid` a PSN session with it takes.")
+        .def_readonly("name", &PsnDevice::name, "The console's name, as discovery and registration report it too.")
+        .def_readonly("remoteplay_enabled", &PsnDevice::remoteplay_enabled, "Whether Remote Play is enabled on the console: a PSN session can only reach it if so.")
+        ;
+
+    pyClassPsnDevice.def("__repr__", [](const PsnDevice &d)
+    {
+        return "<PsnDevice name='" + d.name + "' duid='" + d.duid + "' remoteplay_enabled="
+            + (d.remoteplay_enabled ? "True" : "False") + ">";
+    });
+
+
+
+
     auto pyEnumPsnConnectState =
-        py::enum_<PsnConnectState>(m, "PsnConnectState", py::arithmetic(), " Stages of connecting to a console over PSN (remote play over the internet, via holepunching)\n rather than the local network. Exported for forward compatibility; no bound method currently\n returns one, since the PSN remote-connect path isn't wired up yet.")
+        py::enum_<PsnConnectState>(m, "PsnConnectState", py::arithmetic(), " Stages of connecting to a console over PSN (remote play over the internet, via holepunching)\n rather than the local network. Exported for forward compatibility; no bound method currently\n returns one.")
             .value("NotStarted", PsnConnectState::NotStarted, "")
             .value("WaitingForInternet", PsnConnectState::WaitingForInternet, "")
             .value("InitiatingConnection", PsnConnectState::InitiatingConnection, "")
@@ -87,7 +105,7 @@ void py_init_backend(py::module_ &m)
 
     auto pyClassBackend =
         py::class_<Backend>
-            (m, "Backend", " Registers with a console: the one-time PIN pairing that gets back the registration key\n ChiakiPySession later needs to connect. `chiaki_py.register_host()` wraps register_host() with\n a pythonic result type (HostRegistration) and is the easier way to call this from Python.")
+            (m, "Backend", " Registers with a console: the one-time PIN pairing that gets back the registration key\n ChiakiPySession later needs to connect. `chiaki_py.register_host()` wraps register_host() with\n a pythonic result type (HostRegistration) and is the easier way to call this from Python.\n Automatic (PIN-less) registration goes through a PSN session instead: see list_psn_devices()\n and ChiakiPySessionConnectInfo's `duid` and `auto_regist`.")
         .def(py::init<>())
         .def("register_host_async",
             &Backend::registerHostAsync,
@@ -98,6 +116,14 @@ void py_init_backend(py::module_ &m)
             &Backend::registerHost,
             py::arg("host"), py::arg("psn_id"), py::arg("pin"), py::arg("cpin"), py::arg("broadcast"), py::arg("target"),
             " Like register_host_async(), but blocks until registration finishes and returns the\n RegistResult directly, or raises RuntimeError on failure.")
+        .def_static("list_psn_devices",
+            &Backend::ListPsnDevices,
+            py::arg("psn_token"),
+            " The PS5s linked to the PSN account `psn_token` (an OAuth access token with the\n psn:clientapp scope) belongs to, for PSN sessions and automatic (PIN-less) registration.\n Raises RuntimeError if PSN can't be asked or refuses, e.g. for an expired token.\n PSN lists no PS4s: use psn_main_ps4_duid() for the account's primary PS4.")
+        .def_static("psn_main_ps4_duid",
+            &Backend::PsnMainPs4Duid, " The `duid` that stands for the account's primary PS4 in a PSN session: only the PS4 set as\n primary console of the account can be reached over PSN.")
+        .def_static("generate_client_device_uid",
+            &Backend::GenerateClientDeviceUid, "A new device ID for this client, which PSN's login page takes as its `duid` parameter.")
         ;
     // #endif
     ////////////////////    </generated_from:backend.h>    ////////////////////

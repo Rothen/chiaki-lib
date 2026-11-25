@@ -292,6 +292,20 @@ def configure_backend(options: litgen.LitgenOptions) -> None:
     options.member_exclude_by_name_and_class__regex = {"RegistResult": r"^rp_key$"}
     options.member_readonly_by_name__regex = r".*"
     options.custom_bindings.add_custom_bindings_to_class(
+        "PsnDevice",
+        stub_code="""
+            def __repr__(self) -> str:
+                pass
+        """,
+        pydef_code="""
+            LG_CLASS.def("__repr__", [](const PsnDevice &d)
+            {
+                return "<PsnDevice name='" + d.name + "' duid='" + d.duid + "' remoteplay_enabled="
+                    + (d.remoteplay_enabled ? "True" : "False") + ">";
+            });
+        """,
+    )
+    options.custom_bindings.add_custom_bindings_to_class(
         "RegistResult",
         stub_code='''
             @property

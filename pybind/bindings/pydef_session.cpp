@@ -17,7 +17,8 @@ void py_init_session(py::module_ &m)
             (m, "ChiakiPySessionConnectInfo", " Everything ChiakiPySession needs to open a connection to an already-registered console.\n Built from the registration a prior Backend.register_host() produced (`host`, `nickname`,\n `regist_key`, `morning` i.e. the RP key, `target`) plus `settings`; the pythonic\n `chiaki_py.Session` builds one of these from a `HostRegistration` when it is created.")
         .def(py::init<>())
         .def(py::init<Settings *, ChiakiTarget, std::string, std::string, std::string &, std::string, std::string, std::string, bool, bool, bool, bool>(),
-            py::arg("settings"), py::arg("target"), py::arg("host"), py::arg("nickname"), py::arg("regist_key"), py::arg("morning"), py::arg("initial_login_pin"), py::arg("duid"), py::arg("auto_regist"), py::arg("fullscreen"), py::arg("zoom"), py::arg("stretch"))
+            py::arg("settings"), py::arg("target"), py::arg("host"), py::arg("nickname"), py::arg("regist_key"), py::arg("morning"), py::arg("initial_login_pin"), py::arg("duid"), py::arg("auto_regist"), py::arg("fullscreen"), py::arg("zoom"), py::arg("stretch"),
+            " To connect over PSN instead of the local network, pass the console's `duid` (hex, see\n Backend.list_psn_devices()) and leave `host`, `regist_key` and `morning` empty; `settings`\n must then carry the PSN access token and account-ID. Such a session registers with the\n console over PSN, without a PIN, before it streams; with `auto_regist` it stops there,\n reports the registration through ChiakiPySession.on_auto_regist_succeeded() and quits.\n Otherwise `morning` must be the RP key as 32 hex digits.")
         ;
 
 
@@ -65,9 +66,13 @@ void py_init_session(py::module_ &m)
         .def("get_cant_display",
             &ChiakiPySession::GetCantDisplay, "Whether the console refused to stream what is on screen (e.g. HDCP-protected video).")
         .def("connect_psn_connection",
-            &ChiakiPySession::ConnectPsnConnection, py::arg("duid"), py::arg("ps5"))
+            &ChiakiPySession::ConnectPsnConnection,
+            py::arg("duid"), py::arg("ps5"),
+            "For a session created with a `duid`: set up its PSN connection to that console (the hole punching for its control connection). Call it before start(). Blocks until done, which can take up to a minute; raises RuntimeError if it fails.")
         .def("cancel_psn_connection",
-            &ChiakiPySession::CancelPsnConnection, py::arg("stop_thread"))
+            &ChiakiPySession::CancelPsnConnection,
+            py::arg("stop_thread"),
+            "Abort a running connect_psn_connection().")
         .def("get_chiaki_log",
             &ChiakiPySession::GetChiakiLog, py::return_value_policy::reference)
         .def("get_controllers",
