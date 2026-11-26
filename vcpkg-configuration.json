@@ -1,0 +1,4 @@
+{
+    "$comment": "triplets/x64-windows.cmake links OpenSSL statically so no libcrypto DLL ships that would clash with Python's own; see the comment there.",
+    "overlay-triplets": ["./triplets"]
+}

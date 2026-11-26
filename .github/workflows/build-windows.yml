@@ -111,6 +111,20 @@ jobs:
             - name: Check distributions
               run: python -m twine check dist/*
 
+            # A bundled libcrypto-3-x64.dll takes over Python's own ssl module once chiaki_lib is
+            # imported (see triplets/x64-windows.cmake). Run from outside the repo so the installed
+            # wheel is imported, not the source tree.
+            - name: Check the wheel leaves Python's ssl module alone
+              run: |
+                  $whl = (Get-ChildItem dist\*.whl | Select-Object -First 1).FullName
+                  python -m pip install $whl
+                  Push-Location $env:RUNNER_TEMP
+                  python -c "import sys, zipfile; bad = [n for n in zipfile.ZipFile(sys.argv[1]).namelist() if 'libcrypto' in n or 'libssl' in n]; sys.exit(f'OpenSSL DLLs in the wheel: {bad}' if bad else 0)" $whl
+                  if ($LASTEXITCODE) { exit $LASTEXITCODE }
+                  python -c "import chiaki_lib, ssl; ssl.create_default_context(); print('ssl ok:', ssl.OPENSSL_VERSION)"
+                  if ($LASTEXITCODE) { exit $LASTEXITCODE }
+                  Pop-Location
+
             - uses: actions/upload-artifact@v7
               with:
                   name: dist-windows-${{ matrix.python-version }}

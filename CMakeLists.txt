@@ -3,6 +3,15 @@ cmake_minimum_required(VERSION 3.15)
 
 project(chiaki-lib)
 
+if(WIN32)
+    # OpenSSL is linked statically on Windows (triplets/x64-windows.cmake, enabled through
+    # vcpkg-configuration.json). Builds from before that left these DLLs in the package directory,
+    # where the wheel's "*.dll" glob would still pick them up.
+    file(REMOVE
+        "${CMAKE_CURRENT_SOURCE_DIR}/chiaki_lib/libcrypto-3-x64.dll"
+        "${CMAKE_CURRENT_SOURCE_DIR}/chiaki_lib/libssl-3-x64.dll")
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
